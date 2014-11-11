@@ -1,6 +1,6 @@
 ## Domain Registry Interface, .UK EPP Contact commands
 ##
-## Copyright (c) 2008-2010,2013 Patrick Mevzek <netdri@dotandco.com>. All rights reserved.
+## Copyright (c) 2008-2010,2013-2014 Patrick Mevzek <netdri@dotandco.com>. All rights reserved.
 ##           (c) 2013 Michael Holloway <michael@thedarkwinter.com>. All rights reserved.
 ##
 ## This file is part of Net::DRI
@@ -21,6 +21,7 @@ use warnings;
 use Net::DRI::Util;
 use Net::DRI::Exception;
 use Net::DRI::Protocol::EPP::Util;
+use Net::DRI::Protocol::EPP::Core::Contact;
 
 =pod
 
@@ -50,7 +51,7 @@ Patrick Mevzek, E<lt>netdri@dotandco.comE<gt>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2008-2010,2013 Patrick Mevzek <netdri@dotandco.com>.
+Copyright (c) 2008-2010,2013-2014 Patrick Mevzek <netdri@dotandco.com>.
           (c) 2013 Michael Holloway <michael@thedarkwinter.com>.
 All rights reserved.
 
@@ -89,7 +90,10 @@ sub info_parse
 
  my $infdata=$mes->get_extension('contact-nom-ext','infData');
  return unless $infdata;
-
+ 
+ ## TODO When the extension is in a notification e.g. registrar change then there is a domain object but no contact object so this dies unless we check it exists
+ ## - See the handshake request test which will fail if this line is commented out
+ return unless exists $rinfo->{contact};
  my $s=$rinfo->{contact}->{$oname}->{self};
  foreach my $el (Net::DRI::Util::xml_list_children($infdata))
  {
@@ -140,11 +144,11 @@ sub update
  return;
 }
 
-sub fork
+sub fork ## no critic (Subroutines::ProhibitBuiltinHomonyms)
 {
  my ($epp,$c,$rd)=@_;
  my $mes=$epp->message();
- Net::DRI::Exception::usererr_insufficient_parameters('Contact srID is required') unless  $c->srid();
+ Net::DRI::Exception::usererr_insufficient_parameters('Contact srID is required') unless $c->srid();
  Net::DRI::Exception::usererr_insufficient_parameters('newContactID is required') unless $rd->{newContactId};
  $mes->command(['update','f:fork',sprintf('xmlns:f="%s" xsi:schemaLocation="%s %s"',$mes->nsattrs('std-fork'))]);
  my @doms = @{$rd->{domains}};
@@ -154,11 +158,11 @@ sub fork
  return;
 }
 
-sub lock
- {
+sub lock ## no critic (Subroutines::ProhibitBuiltinHomonyms)
+{
  my ($epp,$c,$rd)=@_;
  my $mes=$epp->message();
- Net::DRI::Exception::usererr_insufficient_parameters('Contact srID is required') unless  $c->srid();
+ Net::DRI::Exception::usererr_insufficient_parameters('Contact srID is required') unless $c->srid();
  Net::DRI::Exception::usererr_insufficient_parameters('type must be set to investigation OR opt-out to lock a contact') unless $rd->{type} && $rd->{type} =~ m/^(investigation|opt-out)$/;
  $mes->command(['update','l:lock',sprintf('xmlns:l="%s" xsi:schemaLocation="%s %s"',$mes->nsattrs('std-locks')). ' object="contact" type="'.$rd->{type}.'"']);
  my @d=(['l:contactId',$c->srid()]);
